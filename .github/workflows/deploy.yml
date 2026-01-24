@@ -1,0 +1,119 @@
+name: Build and Release Obedor (ManualAI)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-executables:
+    name: Build obedor on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: obedor-linux
+            exe_ext: ""
+          - os: windows-latest
+            artifact_name: obedor-windows
+            exe_ext: ".exe"
+          - os: macos-latest
+            artifact_name: obedor-macos
+            exe_ext: ""
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' 
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          
+      - name: Build Executable with PyInstaller
+        # src/main.py를 'obedor'라는 이름의 실행파일로 빌드
+        run: |
+          pyinstaller --onefile --name obedor${{ matrix.exe_ext }} src/main.py
+          
+      - name: Prepare Release Artifacts
+        shell: bash
+        run: |
+          mkdir release_package
+          
+          # 실행 파일 복사
+          cp dist/obedor${{ matrix.exe_ext }} release_package/
+          
+          # 필수 문서 복사
+          cp README.md release_package/
+          cp LICENSE release_package/
+          
+          # 데이터 생성 스크립트 및 소스 포함 (사용자가 재생성 가능하도록)
+          cp -r src release_package/
+          
+          # Zip 압축
+          cd release_package
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            7z a ../${{ matrix.artifact_name }}.zip .
+          else
+            zip -r ../${{ matrix.artifact_name }}.zip .
+          fi
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.zip
+
+  create-release:
+    needs: build-executables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v7.0-build-${{ github.run_number }}
+          name: Release v7.0 (Obedor) - Build ${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            obedor-linux/obedor-linux.zip
+            obedor-windows/obedor-windows.zip
+            obedor-macos/obedor-macos.zip
+
+  build-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/manualai:latest
+            ghcr.io/${{ github.repository }}/manualai:v7.0

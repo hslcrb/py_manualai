@@ -48,9 +48,9 @@ class ManualEngine:
             formatted_results.append({
                 "title": hl_title,
                 "content": hl_content,
-                "score": res['score'], # FTS Rank
-                "type": res['type'],
-                "category": res['category']
+                "score": res.get('rank', 0), # FTS Rank
+                "type": res.get('subcategory', 'General'),
+                "category": res.get('category', 'Unknown')
             })
             
         elapsed_time = os.times()[4] - start_time
