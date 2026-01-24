@@ -1,147 +1,176 @@
 import json
 import itertools
-from collections import defaultdict
+from collections import defaultdict, Counter
 import time
 import os
 import random
 from utils import get_ngrams
 
 def generate_manual_db():
-    print("Initializing MASSIVE ManualAI Database Generation Protocol (PORTAL SCALE)...")
+    print("=====================================================================")
+    print("   GENERATE MANUAL AI DATABASE v4.0 (HYPER-SCALE PORTAL EDITION)   ")
+    print("=====================================================================")
     
-    # --- 1. 대화형 데이터 (Existing) ---
-    subjects = ["나", "너", "우리", "그", "그녀", "사람들", "세상", "우주", "AI", "파이썬", "코드", "사랑", "인생", "꿈"]
-    verbs = ["좋아해", "싫어해", "알아", "몰라", "공부해", "생각해", "느껴", "만들어", "부셔", "도와줘", "알려줘"]
-    adjectives = ["어렵다", "쉽다", "재밌다", "슬프다", "기쁘다", "화난다", "행복하다"]
+    start_time = time.time()
     
-    # --- 2. 정보성 데이터 (New: Portal Search Style) ---
-    # 실제 검색엔진처럼 다양한 주제의 "지식 문서"를 생성
-    knowledge_base = [
-        {"category": "IT", "title": "파이썬 프로그래밍 가이드", "content": "파이썬은 1991년 귀도 반 로섬이 발표한 프로그래밍 언어입니다. 문법이 간결하고 가독성이 좋아 초보자에게 인기가 많습니다. 데이터 과학, 웹 개발 등 다양한 분야에서 사용됩니다."},
-        {"category": "IT", "title": "리눅스 운영체제 기초", "content": "리눅스는 리누스 토발즈가 개발한 오픈 소스 운영체제 커널입니다. 서버 시장에서 압도적인 점유율을 자랑하며, 안정성과 보안성이 뛰어납니다."},
-        {"category": "Cooking", "title": "김치찌개 맛있게 끓이는 법", "content": "잘 익은 김치를 참기름에 달달 볶다가 돼지고기를 넣고 육수를 부어 끓입니다. 다진 마늘, 대파, 두부를 넣고 푹 끓이면 완성입니다."},
-        {"category": "Health", "title": "하루 물 권장 섭취량", "content": "세계보건기구(WHO)에 따르면 성인의 하루 물 권장 섭취량은 약 1.5리터에서 2리터입니다. 충분한 수분 섭취는 건강 유지에 필수적입니다."},
-        {"category": "History", "title": "임진왜란의 역사", "content": "1592년 일본이 조선을 침략하여 일어난 전쟁입니다. 이순신 장군의 활약과 의병들의 저항으로 조선이 국난을 극복하였습니다."},
-        {"category": "Science", "title": "상대성 이론 개요", "content": "알베르트 아인슈타인이 발표한 이론으로, 특수 상대성 이론과 일반 상대성 이론으로 나뉩니다. 시간과 공간이 절대적이지 않음을 증명했습니다."},
-        {"category": "Travel", "title": "제주도 여행 코스 추천", "content": "제주도는 한국의 아름다운 섬입니다. 성산일출봉, 한라산, 우도 등 자연 경관이 뛰어나며 흑돼지, 갈치조림 등 먹거리가 풍부합니다."}
+    # === 1. 어휘 및 토픽 데이터베이스 (Lexical Database) ===
+    # 포털급 데이터를 위한 방대한 어휘 풀
+    topics = {
+        "IT": ["파이썬", "자바", "리눅스", "윈도우", "맥북", "아이폰", "갤럭시", "AI", "블록체인", "클라우드", "서버", "해킹", "보안", "코딩", "개발자", "알고리즘"],
+        "Health": ["다이어트", "비타민", "단백질", "헬스", "요가", "당뇨", "고혈압", "암", "스트레스", "수면", "영양제", "운동", "탈모", "피부관리"],
+        "Finance": ["주식", "비트코인", "부동산", "적금", "청약", "환율", "금리", "재테크", "연말정산", "세금", "보험", "대출", "경제", "나스닥"],
+        "Food": ["맛집", "레시피", "김치찌개", "파스타", "치킨", "피자", "커피", "디저트", "편의점", "다이어트식단", "배달", "떡볶이", "삼겹살", "라면"],
+        "Entertain": ["넷플릭스", "영화", "드라마", "아이돌", "케이팝", "유튜브", "웹툰", "게임", "롤", "오버워치", "축구", "야구", "월드컵", "올림픽"],
+        "Travel": ["제주도", "일본", "유럽", "미국", "호캉스", "캠핑", "글램핑", "비행기", "여권", "환전", "면세점", "부산", "강릉", "서울"]
+    }
+    
+    doc_types = ["블로그", "뉴스", "카페", "지식백과", "쇼핑", "동영상"]
+    
+    # 템플릿: 제목 생성용
+    title_templates = [
+        "{topic} 관련 필수 정보 정리",
+        "{topic} 진짜 좋을까? 솔직 후기",
+        "2026년 {topic} 트렌드 분석",
+        "{topic} 초보자를 위한 완벽 가이드",
+        "당신이 몰랐던 {topic}의 비밀",
+        "{topic} 추천 TOP 10",
+        "{topic} vs {topic_comp} 비교 분석",
+        "오늘의 {topic} 뉴스 요약",
+        "{topic} 구매 전 꼭 봐야할 글",
+        "제대로 된 {topic} 찾는 법"
     ]
-
+    
+    # 템플릿: 내용 생성용
+    content_templates = [
+        "안녕하세요. 오늘은 {topic}에 대해 알아보겠습니다. 최근 많은 분들이 {topic}에 관심을 가지고 계신데요. 특히 {related}와 관련된 이슈가 화제입니다. 결론적으로 말씀드리면 {topic}은 매우 중요합니다.",
+        "{topic} 관련 정보를 찾고 계신가요? 제가 직접 경험해본 {topic} 후기를 공유합니다. 장점은 {adj1}하고, 단점은 {adj2}하다는 것입니다. 자세한 내용은 본문을 참고하세요.",
+        "속보입니다. {topic} 시장이 급변하고 있습니다. 전문가들은 {topic}의 미래를 {adj1}하게 전망하고 있습니다. 관련주 및 투자 포인트에 대해 분석해 봅니다.",
+        "이번 영상에서는 {topic} 꿀팁을 대방출합니다. {topic} 잘하는 법, {topic} 싸게 사는 법 등 다양한 노하우를 담았습니다. 구독과 좋아요 부탁드립니다."
+    ]
+    
+    adjectives = ["놀라운", "충격적인", "혁신적인", "위험한", "안전한", "저렴한", "비싼", "최고의", "최악의", "신기한"]
+    
     database = {
         "meta": {
-            "version": "3.0 (Portal Search Edition)",
+            "version": "4.0 (Hyperscale)",
             "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "total_entries": 0
+            "total_entries": 0,
+            "total_documents": 0,
         },
         "exact_match": {}, 
-        "documents": [], # BM25 검색용 문서 리스트 (id, content, keywords)
-        "keyword_index": defaultdict(list),
-        "ngram_index": defaultdict(list)
+        "documents": [],
+        "related_keywords": defaultdict(Counter) # 연관 검색어용 (단어 -> 연관단어 카운트)
     }
 
-    entry_count = 0
     doc_id = 0
+    entry_count = 0
 
-    # 1. 지식 문서 확장 (Knowledge Amplification)
-    # 각 지식 문서를 기반으로 수많은 변형 질문/검색어 생성
-    print("Generating Knowledge Base...")
-    for kb in knowledge_base:
-        # 원본 문서 등록
-        database["documents"].append({
-            "id": doc_id,
-            "type": "knowledge",
-            "title": kb["title"],
-            "content": kb["content"],
-            "keywords": kb["title"].split() + kb["content"].split()
-        })
+    # === 2. 매시브 데이터 생성 (Massive Data Generation) ===
+    # 각 토픽별로 대량의 문서 생성
+    
+    print("Generating Hyper-scale Knowledge Graph...")
+    
+    for category, keywords in topics.items():
+        print(f"  > Processing Category: {category} ({len(keywords)} base keywords)")
         
-        # 검색어 매핑 (문서 타이틀 및 내용을 검색어로)
-        queries = [
-            kb["title"], 
-            f"{kb['category']} 정보", 
-            f"{kb['title']} 알려줘",
-            f"{kb['title']}에 대해 설명해줘"
-        ]
+        # 키워드 조합 생성 (Pairing)
+        pairs = list(itertools.permutations(keywords, 2))
         
-        # 내용에서 명사 추출하여 검색어 생성 (간이)
-        words = kb["content"].split()
-        for i in range(len(words)-1):
-            queries.append(f"{words[i]} {words[i+1]}") # Bigram 검색어
+        # 1. 문서 대량 생성 (토픽당 1000개 이상 목표)
+        # 키워드 기반 + 랜덤 조합
         
-        for q in queries:
-            database["exact_match"][q] = [kb["content"]] # 검색 시 내용 반환
+        # A. 기본 키워드 문서
+        for kw in keywords:
+            # 토픽 대표 문서
+            title = f"{kw}의 모든 것 - {category} 백과"
+            content = f"{kw}은(는) {category} 분야의 핵심 키워드입니다. 정의: {kw}란 무엇인가..."
             
-            # 인덱싱
-            for word in q.split():
-                database["keyword_index"][word].append(str(doc_id)) # 키워드 -> 문서 ID 매핑
-            
+            doc = {
+                "id": doc_id,
+                "category": category,
+                "type": "지식백과",
+                "title": title,
+                "content": content,
+                "keywords": [kw, category, "정보", "정의"]
+            }
+            database["documents"].append(doc)
+            database["exact_match"][kw] = [content] # 정확히 키워드만 쳤을 때
+            doc_id += 1
             entry_count += 1
             
-        doc_id += 1
+        # B. 조합형/변형형 문서 (Volume Amplification)
+        # 생성할 문서 수 설정 (카테고리당 약 3000개~5000개)
+        TARGET_DOCS_PER_CAT = 3000
+        
+        for _ in range(TARGET_DOCS_PER_CAT):
+            kw = random.choice(keywords)
+            comp_kw = random.choice(keywords)
+            doc_type = random.choice(doc_types)
+            tmpl_t = random.choice(title_templates)
+            tmpl_c = random.choice(content_templates)
+            adj1 = random.choice(adjectives)
+            adj2 = random.choice(adjectives)
+            
+            # 제목/내용 생성
+            real_title = tmpl_t.replace("{topic}", kw).replace("{topic_comp}", comp_kw)
+            real_content = tmpl_c.format(topic=kw, related=comp_kw, adj1=adj1, adj2=adj2)
+            
+            # 태그/키워드 추출 (연관 검색어 학습용)
+            doc_kws = [kw, category, doc_type, comp_kw]
+            if kw != comp_kw:
+                # 동시 출현 단어 기록 (연관 검색어 로직)
+                database["related_keywords"][kw][comp_kw] += 1
+                database["related_keywords"][comp_kw][kw] += 1
+            
+            doc = {
+                "id": doc_id,
+                "category": category,
+                "type": doc_type,
+                "title": real_title,
+                "content": real_content,
+                "keywords": doc_kws
+            }
+            database["documents"].append(doc)
+            
+            # 정확 일치 쿼리 추가 (제목 그대로 검색시)
+            database["exact_match"][real_title] = [real_content]
+            
+            doc_id += 1
+            entry_count += 1
 
-    # 2. 대화형 데이터 생성 (기존 로직 유지 + 확장)
-    print("Generating Dialogue Patterns...")
-    templates = [
-        {"q": "{subject} {verb}", "r": "{subject}가 {verb}한다니 흥미롭군요."},
-        {"q": "{subject} {adjective}", "r": "{subject} 참 {adjective}하죠."},
-        {"q": "{subject} {verb} {adjective}", "r": "정말 복합적인 상황이네요."}
+    # === 3. 대화형 데이터 주입 (Chat Data Injection) ===
+    # 기존 대화 로직 유지 + 확장
+    print("  > Injecting Conversational Logic...")
+    chat_patterns = [
+        ("안녕", "안녕하세요! ManualAI v4.0 포털 엔진입니다."),
+        ("날씨", "현재 시스템상 외부 날씨 정보에 접근할 수 없으나, 기상청 검색 결과를 보여드릴까요?"),
+        ("심심해", "재미있는 '유머'나 '게임'을 검색해보시는 건 어떨까요?"),
+        ("배고파", "맛집 카테고리에서 '김치찌개'나 '치킨'을 검색해보세요!"),
+        ("주식 추천", "저는 투자를 권유하지 않습니다. 대신 '삼성전자'나 '나스닥' 관련 뉴스를 검색해드릴 수 있습니다.")
     ]
     
-    # 콤비네이션 로직 단순화하여 속도 향상시키되 규모 유지
-    combined = list(itertools.product(subjects, verbs)) # suject + verb
-    for s, v in combined:
-        q = f"{s} {v}"
-        r = [f"{s}에 대해 {v}라고 생각하시는군요."]
-        
-        # 문서로 등록 (BM25 검색 대상이 되도록)
-        database["documents"].append({
-            "id": doc_id,
-            "type": "chat",
-            "title": "Dialogue",
-            "content": f"User said {q}. System responds: {r[0]}", 
-            "keywords": q.split()
-        })
-        
-        database["exact_match"][q] = r
-        # 키워드 인덱싱
-        for word in q.split():
-            database["keyword_index"][word].append(str(doc_id))
-        
-        doc_id += 1
+    for q, r in chat_patterns:
+        database["exact_match"][q] = [r]
         entry_count += 1
 
-    # 3. 노이즈 및 대규모 더미 데이터 (검색 볼륨감 확보)
-    # 실제 포털처럼 느껴지게 하기 위해 '가상의 웹 문서'들을 대량 생성
-    print("Simulating Web Documents...")
-    web_keywords = ["뉴스", "블로그", "카페", "쇼핑", "동영상", "이미지"]
-    topics = ["주식", "부동산", "게임", "스포츠", "연예", "정치", "경제"]
-    
-    for i in range(5000): # 5,000개의 가상 웹 문서 생성
-        topic = random.choice(topics)
-        category = random.choice(web_keywords)
-        title = f"{topic} 관련 {category} 글 {i}"
-        content = f"이것은 {topic}에 대한 {category} 테스트 데이터입니다. 번호 {i}."
-        
-        database["documents"].append({
-            "id": doc_id,
-            "type": "web",
-            "title": title,
-            "content": content,
-            "keywords": title.split()
-        })
-        
-        # 검색어 매핑
-        database["exact_match"][title] = [content]
-        for word in title.split():
-            database["keyword_index"][word].append(str(doc_id))
-        
-        doc_id += 1
-        entry_count += 1
-
+    # 최종 메타데이터 업데이트
     database["meta"]["total_entries"] = entry_count
     database["meta"]["total_documents"] = doc_id
     
-    print(f"Generation Complete. Total Entries: {entry_count}, Total Documents: {doc_id}")
+    # 연관 검색어 최적화 (Counter 객체를 리스트로 변환하여 json 직렬화 가능하게)
+    # 상위 5개 연관어만 저장
+    final_related = {}
+    for k, v in database["related_keywords"].items():
+        final_related[k] = [pair[0] for pair in v.most_common(5)]
+    database["related_keywords"] = final_related
     
+    print(f"=====================================================================")
+    print(f"   GENERATION COMPLETE")
+    print(f"   - Total Documents: {doc_id:,}")
+    print(f"   - Total Entries: {entry_count:,}")
+    print(f"   - Categories: {list(topics.keys())}")
+    print(f"=====================================================================")
+
     # 저장
     import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,7 +180,8 @@ def generate_manual_db():
 
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(database, f, ensure_ascii=False, indent=2)
-    print(f"Database saved to {output_path}")
+    print(f"Dataset securely saved to {output_path}")
+    print(f"Time Elapsed: {time.time() - start_time:.2f}s")
 
 if __name__ == "__main__":
     generate_manual_db()
