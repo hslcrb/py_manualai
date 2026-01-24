@@ -11,7 +11,6 @@ class ManualEngine:
         else:
             self.db_path = db_path
         
-        # Load DB Manager (No loading time needed!)
         self.db = DatabaseManager(self.db_path)
         print(f"[ENGINE] Connected to High-Performance Database: {self.db_path}")
 
@@ -22,61 +21,57 @@ class ManualEngine:
         
         query_tokens = query.split()
 
-        # 1. Exact Match [O(1) Hash Search (SQL Primary Key)]
+        # 1. Primary AI Response (Gemini/Google Style "Featured Snippet")
+        # Exact match or first direct fact found
+        ai_response = None
         exact_res = self.db.get_exact_match(query)
         if exact_res:
-            related = self.db.get_related_keywords(query_tokens)
-            return {
-                "response": exact_res,
-                "type": "DIRECT_ANSWER",
-                "strategy": "SQL_PRIMARY_KEY_LOOKUP",
-                "confidence": 1.0,
-                "time": os.times()[4] - start_time,
-                "related": related
-            }
+            ai_response = exact_res
+            strategy = "DIRECT_INTEL"
+        else:
+            # Check if query tokens match any high-levelMicro items for a quick summary
+            # We use an internal heuristic or just rely on FTS ranking for now.
+            strategy = "SEARCH_INDEX_SCAN"
 
-        # 2. FTS Search (Full-Text Search Index)
-        results, fts_time = self.db.search_fts(query)
+        # 2. Advanced Search Results (Portal Style)
+        # Fetch 30 results internally but show Top 5 (for diversity/relevance)
+        raw_results, fts_time = self.db.search_fts(query, limit=30)
         
-        # UI Formatting
+        # 3. Intelligent Ranking & Formatting
         formatted_results = []
-        for res in results:
-             # 하이라이팅 적용
+        seen_contents = set() # For diversity (prevent repetitive templates)
+        
+        for res in raw_results:
+            if len(formatted_results) >= 5: break
+            
+            # Content Hash (Simplified) for De-duplication
+            content_snippet = res['content'][:50]
+            if content_snippet in seen_contents: continue
+            seen_contents.add(content_snippet)
+            
             hl_title = highlight_text(res['title'], query_tokens)
             hl_content = highlight_text(res['content'], query_tokens)
             
             formatted_results.append({
                 "title": hl_title,
                 "content": hl_content,
-                "score": res.get('rank', 0), # FTS Rank
+                "rank": res.get('rank', 0),
                 "type": res.get('subcategory', 'General'),
                 "category": res.get('category', 'Unknown')
             })
             
+        # If no exact match but we have a result, use the top result as a 'hint' or summary
+        if not ai_response and formatted_results:
+            ai_response = formatted_results[0]['content']
+
         elapsed_time = os.times()[4] - start_time
         related_kws = self.db.get_related_keywords(query_tokens)
 
-        if formatted_results:
-            response_text = f"검색 결과 {len(formatted_results)}건을 찾았습니다.\n"
-            for res in formatted_results:
-                source_tag = f"[{res['type']}/{res['category']}]"
-                response_text += f"\n{source_tag} {res['title']}\n    {res['content'][:100]}..."
-            
-            if related_kws:
-                response_text += f"\n\n[연관 검색어] {', '.join(related_kws)}"
-                
-            return {
-                "response": response_text,
-                "strategy": "SQL_FTS5_INDEX_SCAN",
-                "confidence": 0.95, # FTS hit is high confidence
-                "results": formatted_results,
-                "related": related_kws,
-                "time": elapsed_time
-            }
-            
         return {
-            "response": f"검색어 '{query}'에 대한 결과를 찾지 못했습니다.\n추천 검색어: {', '.join(related_kws) if related_kws else '없음'}",
-            "strategy": "FALLBACK",
-            "confidence": 0.0,
+            "ai_response": ai_response or "찾으시는 정보가 데이터베이스에 존재하지 않습니다.",
+            "search_results": formatted_results,
+            "strategy": strategy,
+            "confidence": 0.98 if exact_res else 0.85,
+            "related": related_kws,
             "time": elapsed_time
         }

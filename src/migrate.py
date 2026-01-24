@@ -45,9 +45,9 @@ def migrate_massive():
         
         # Adjust multiplier based on Loader type for realistic mix
         if loader_name == "KnowledgeLoader":
-            count = 10000 # 10k * 10 loop = 100k
+            count = 100000 # 100k * 5 loop = 500k
         else:
-            count = 3000 # High density for main topics
+            count = 10000 # ~10k * topic items
             
         print(f"  > Running {loader_name}...")
         generated_count = loader.generate(count_per_topic=count)
